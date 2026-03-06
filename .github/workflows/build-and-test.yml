@@ -20,14 +20,17 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
+    - name: Make Maven wrapper executable
+      run: chmod +x adventures/mvnw
+    
     - name: Build with Maven
       run: cd adventures && ./mvnw clean compile -B
     
     - name: Run Tests
       run: cd adventures && ./mvnw test -B
     
-    - name: Notify on Failure
-      if: failure()
+    - name: Notify on PR Failure
+      if: failure() && github.event_name == 'pull_request'
       uses: actions/github-script@v6
       with:
         script: |
