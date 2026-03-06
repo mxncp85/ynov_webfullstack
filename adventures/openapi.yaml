@@ -1,0 +1,540 @@
+openapi: 3.0.3
+info:
+  title: API des Aventuriers
+  description: API REST pour la gestion des aventuriers
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Serveur de développement local
+  - url: https://staging.aventuriers-api.com
+    description: Serveur de staging
+  - url: https://api.aventuriers.com
+    description: Serveur de production
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Aventuriers
+    description: Opérations CRUD sur les aventuriers
+
+paths:
+  /api/v1/aventuriers:
+    get:
+      tags: [Aventuriers]
+      summary: Liste tous les aventuriers
+      operationId: listAventuriers
+      security: []  # Endpoint public — pas d'authentification requise
+      parameters:
+        - $ref: '#/components/parameters/QueryPage'
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryClasse'
+        - $ref: '#/components/parameters/QueryNiveauMin'
+        - $ref: '#/components/parameters/QueryNiveauMax'
+      responses:
+        '200':
+          description: Liste paginée des aventuriers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AventurierListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Aventuriers]
+      summary: Crée un nouvel aventurier
+      operationId: createAventurier
+      requestBody:
+        $ref: '#/components/requestBodies/AventurierCreateBody'
+      responses:
+        '201':
+          description: Aventurier créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aventurier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/aventuriers/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PathAventurierId'
+
+    get:
+      tags: [Aventuriers]
+      summary: Récupère un aventurier par son ID
+      operationId: getAventurierById
+      security: []  # Endpoint public — pas d'authentification requise
+      responses:
+        '200':
+          description: Aventurier trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aventurier'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Aventuriers]
+      summary: Met à jour complètement un aventurier
+      operationId: updateAventurier
+      requestBody:
+        $ref: '#/components/requestBodies/AventurierUpdateBody'
+      responses:
+        '200':
+          description: Aventurier mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aventurier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags: [Aventuriers]
+      summary: Met à jour partiellement un aventurier
+      operationId: patchAventurier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AventurierPatch'
+      responses:
+        '200':
+          description: Aventurier partiellement mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aventurier'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Aventuriers]
+      summary: Supprime un aventurier
+      operationId: deleteAventurier
+      responses:
+        '204':
+          description: Aventurier supprimé avec succès (pas de contenu)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+
+  # ─────────────────────────────────────────
+  # Schémas de sécurité
+  # ─────────────────────────────────────────
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Authentification via JWT. Inclure le token dans le header :
+        `Authorization: Bearer <token>`
+
+  # ─────────────────────────────────────────
+  # Paramètres réutilisables
+  # ─────────────────────────────────────────
+  parameters:
+    PathAventurierId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant unique de l'aventurier (UUID)
+      schema:
+        type: string
+        format: uuid
+        example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+
+    QueryPage:
+      name: page
+      in: query
+      required: false
+      description: Numéro de la page (commence à 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    QueryLimit:
+      name: limit
+      in: query
+      required: false
+      description: Nombre d'éléments par page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    QueryClasse:
+      name: classe
+      in: query
+      required: false
+      description: Filtrer par classe
+      schema:
+        $ref: '#/components/schemas/Classe'
+
+    QueryNiveauMin:
+      name: niveau_min
+      in: query
+      required: false
+      description: Filtrer par niveau minimum
+      schema:
+        $ref: '#/components/schemas/Niveau'
+
+    QueryNiveauMax:
+      name: niveau_max
+      in: query
+      required: false
+      description: Filtrer par niveau maximum
+      schema:
+        $ref: '#/components/schemas/Niveau'
+
+  # ─────────────────────────────────────────
+  # Corps de requête réutilisables
+  # ─────────────────────────────────────────
+  requestBodies:
+    AventurierCreateBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AventurierCreateInput'
+          example:
+            nom: "Aragorn"
+            description: "Héritier du trône du Gondor, rôdeur des terres sauvages."
+            caracteristiques:
+              physique: 17
+              mental: 14
+              perception: 16
+            classe: Rodeur
+
+    AventurierUpdateBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AventurierCreate'
+
+  # ─────────────────────────────────────────
+  # Schémas
+  # ─────────────────────────────────────────
+  schemas:
+
+    Niveau:
+      type: integer
+      description: Niveau de progression (de 1 à 20)
+      minimum: 1
+      maximum: 20
+      example: 8
+
+    Classe:
+      type: string
+      description: Classe de l'aventurier
+      enum:
+        - Guerrier
+        - Mage
+        - Rodeur
+        - Voleur
+        - Clerc
+        - Barde
+        - Paladin
+        - Druide
+        - Barbare
+        - Sorcier
+      example: Rodeur
+
+    CaracteristiqueValeur:
+      type: integer
+      description: Valeur d'une caractéristique (de 1 à 20)
+      minimum: 1
+      maximum: 20
+
+    Caracteristiques:
+      type: object
+      description: Les trois caractéristiques de base de l'aventurier
+      required:
+        - physique
+        - mental
+        - perception
+      properties:
+        physique:
+          allOf:
+            - $ref: '#/components/schemas/CaracteristiqueValeur'
+            - description: Force, endurance et résistance physique
+              example: 15
+        mental:
+          allOf:
+            - $ref: '#/components/schemas/CaracteristiqueValeur'
+            - description: Intelligence, sagesse et force de volonté
+              example: 12
+        perception:
+          allOf:
+            - $ref: '#/components/schemas/CaracteristiqueValeur'
+            - description: Acuité sensorielle et intuition
+              example: 14
+
+    CaracteristiquesPatch:
+      type: object
+      description: Mise à jour partielle des caractéristiques (tous les champs optionnels)
+      properties:
+        physique:
+          $ref: '#/components/schemas/CaracteristiqueValeur'
+        mental:
+          $ref: '#/components/schemas/CaracteristiqueValeur'
+        perception:
+          $ref: '#/components/schemas/CaracteristiqueValeur'
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          description: Page courante
+          example: 1
+        limit:
+          type: integer
+          description: Éléments par page
+          example: 20
+        total:
+          type: integer
+          description: Nombre total d'aventuriers
+          example: 42
+        totalPages:
+          type: integer
+          description: Nombre total de pages
+          example: 3
+
+    AventurierCreate:
+      type: object
+      description: Données requises pour mettre à jour complètement un aventurier
+      required:
+        - nom
+        - caracteristiques
+        - niveau
+        - classe
+      properties:
+        nom:
+          type: string
+          description: Nom de l'aventurier
+          minLength: 2
+          maxLength: 100
+          example: "Légolas"
+        description:
+          type: string
+          description: Présentation libre de l'aventurier (optionnel)
+          maxLength: 1000
+          example: "Elfe de la Forêt Noire, archer d'exception au service de la Communauté."
+        caracteristiques:
+          $ref: '#/components/schemas/Caracteristiques'
+        niveau:
+          $ref: '#/components/schemas/Niveau'
+        classe:
+          $ref: '#/components/schemas/Classe'
+
+    AventurierCreateInput:
+      type: object
+      description: Données requises pour créer un aventurier (niveau forcé à 1 côté serveur)
+      required:
+        - nom
+        - caracteristiques
+        - classe
+      properties:
+        nom:
+          type: string
+          description: Nom de l'aventurier
+          minLength: 2
+          maxLength: 100
+          example: "Légolas"
+        description:
+          type: string
+          description: Présentation libre de l'aventurier (optionnel)
+          maxLength: 1000
+          example: "Elfe de la Forêt Noire, archer d'exception au service de la Communauté."
+        caracteristiques:
+          $ref: '#/components/schemas/Caracteristiques'
+        classe:
+          $ref: '#/components/schemas/Classe'
+
+    AventurierPatch:
+      type: object
+      description: Données optionnelles pour une mise à jour partielle
+      properties:
+        nom:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Légolas Vertefeuille"
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+          example: "Elfe légendaire du Tiers-Âge."
+        caracteristiques:
+          $ref: '#/components/schemas/CaracteristiquesPatch'
+        niveau:
+          $ref: '#/components/schemas/Niveau'
+        classe:
+          $ref: '#/components/schemas/Classe'
+
+    Aventurier:
+      allOf:
+        - type: object
+          required:
+            - id
+            - createdAt
+            - updatedAt
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: Identifiant unique généré automatiquement
+              readOnly: true
+              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            createdAt:
+              type: string
+              format: date-time
+              description: Date de création
+              readOnly: true
+              example: "2024-01-15T10:30:00Z"
+            updatedAt:
+              type: string
+              format: date-time
+              description: Date de dernière mise à jour
+              readOnly: true
+              example: "2024-06-20T14:45:00Z"
+        - $ref: '#/components/schemas/AventurierCreate'
+
+    AventurierListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Aventurier'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+          description: URI identifiant le type de problème
+          example: "about:blank"
+        title:
+          type: string
+          description: Titre court du problème
+          example: "Aventurier non trouvé"
+        status:
+          type: integer
+          description: Code HTTP du statut
+          example: 404
+        detail:
+          type: string
+          description: Description détaillée du problème
+          example: "Aventurier non trouvé avec l'ID : 3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        fieldErrors:
+          type: object
+          description: Erreurs de validation par champ (présent uniquement pour les erreurs 400)
+          additionalProperties:
+            type: string
+          example:
+            nom: "Le nom doit faire entre 2 et 100 caractères"
+            "caracteristiques.physique": "La valeur doit être comprise entre 1 et 20"
+
+  # ─────────────────────────────────────────
+  # Réponses réutilisables
+  # ─────────────────────────────────────────
+  responses:
+    BadRequest:
+      description: Requête malformée ou données invalides
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Erreur de validation"
+            status: 400
+            detail: "Les données fournies sont invalides"
+            fieldErrors:
+              nom: "Le nom doit faire entre 2 et 100 caractères"
+              "caracteristiques.physique": "La valeur doit être comprise entre 1 et 20"
+
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Aventurier non trouvé"
+            status: 404
+            detail: "Aventurier non trouvé avec l'ID : 3fa85f64-5717-4562-b3fc-2c963f66afa6"
+
+    UnprocessableEntity:
+      description: Données sémantiquement incorrectes (erreurs métier ou validation)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Erreur de validation métier"
+            status: 422
+            detail: "Le niveau ne peut pas monter de plus de 1 à la fois. Niveau actuel : 5, Niveau demandé : 7"
+
+    InternalServerError:
+      description: Erreur serveur interne
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Erreur serveur interne"
+            status: 500
+            detail: "Une erreur interne est survenue"
