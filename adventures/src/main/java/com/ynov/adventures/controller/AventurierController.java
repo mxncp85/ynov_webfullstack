@@ -1,91 +1,103 @@
 package com.ynov.adventures.controller;
 
-import com.ynov.adventures.domain.Classe;
-import com.ynov.adventures.dto.*;
+import com.ynov.adventures.generated.api.AventuriersApi;
+import com.ynov.adventures.generated.model.*;
 import com.ynov.adventures.service.AventurierService;
-import jakarta.validation.Valid;
+import com.ynov.adventures.service.MapperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/aventuriers")
 @RequiredArgsConstructor
-public class AventurierController {
+public class AventurierController implements AventuriersApi {
 
     private final AventurierService aventurierService;
+    private final MapperService mapperService;
 
     /**
-     * GET /api/v1/aventuriers - Liste tous les aventuriers avec pagination et filtres
+     * GET /api/v1/aventuriers — VIEWER / ADMIN
      */
-    @GetMapping
-    public ResponseEntity<AventurierListResponseDTO> listAventuriers(
-            @RequestParam(name = "page", defaultValue = "1") Integer page,
-            @RequestParam(name = "limit", defaultValue = "20") Integer limit,
-            @RequestParam(name = "classe", required = false) Classe classe,
-            @RequestParam(name = "niveau_min", required = false) Integer niveauMin,
-            @RequestParam(name = "niveau_max", required = false) Integer niveauMax
+    @Override
+    @PreAuthorize("hasAnyRole('VIEWER', 'ADMIN')")
+    public ResponseEntity<AventurierListResponse> listAventuriers(
+            Integer page,
+            Integer limit,
+            Classe classe,
+            Integer niveauMin,
+            Integer niveauMax
     ) {
-        AventurierListResponseDTO response = aventurierService.listAventuriers(page, limit, classe, niveauMin, niveauMax);
-        return ResponseEntity.ok(response);
+        com.ynov.adventures.domain.Classe domainClasse = classe != null
+                ? com.ynov.adventures.domain.Classe.valueOf(classe.name())
+                : null;
+
+        return ResponseEntity.ok(
+                mapperService.toGeneratedListResponse(
+                        aventurierService.listAventuriers(page, limit, domainClasse, niveauMin, niveauMax)
+                )
+        );
     }
 
     /**
-     * POST /api/v1/aventuriers - Crée un nouvel aventurier
+     * POST /api/v1/aventuriers — ADMIN
      */
-    @PostMapping
-    public ResponseEntity<AventurierDTO> createAventurier(
-            @Valid @RequestBody AventurierCreateDTO dto
-    ) {
-        AventurierDTO createdAventurier = aventurierService.createAventurier(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdAventurier);
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Aventurier> createAventurier(AventurierCreateInput aventurierCreateInput) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                mapperService.toGeneratedAventurier(
+                        aventurierService.createAventurier(mapperService.fromGenerated(aventurierCreateInput))
+                )
+        );
     }
 
     /**
-     * GET /api/v1/aventuriers/{id} - Récupère un aventurier par son ID
+     * GET /api/v1/aventuriers/{id} — VIEWER / ADMIN
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<AventurierDTO> getAventurierById(
-            @PathVariable UUID id
-    ) {
-        AventurierDTO aventurier = aventurierService.getAventurierById(id);
-        return ResponseEntity.ok(aventurier);
+    @Override
+    @PreAuthorize("hasAnyRole('VIEWER', 'ADMIN')")
+    public ResponseEntity<Aventurier> getAventurierById(UUID id) {
+        return ResponseEntity.ok(
+                mapperService.toGeneratedAventurier(aventurierService.getAventurierById(id))
+        );
     }
 
     /**
-     * PUT /api/v1/aventuriers/{id} - Met à jour complètement un aventurier
+     * PUT /api/v1/aventuriers/{id} — ADMIN
      */
-    @PutMapping("/{id}")
-    public ResponseEntity<AventurierDTO> updateAventurier(
-            @PathVariable UUID id,
-            @Valid @RequestBody AventurierUpdateDTO dto
-    ) {
-        AventurierDTO updatedAventurier = aventurierService.updateAventurier(id, dto);
-        return ResponseEntity.ok(updatedAventurier);
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Aventurier> updateAventurier(UUID id, AventurierCreate aventurierCreate) {
+        return ResponseEntity.ok(
+                mapperService.toGeneratedAventurier(
+                        aventurierService.updateAventurier(id, mapperService.fromGenerated(aventurierCreate))
+                )
+        );
     }
 
     /**
-     * PATCH /api/v1/aventuriers/{id} - Met à jour partiellement un aventurier
+     * PATCH /api/v1/aventuriers/{id} — ADMIN
      */
-    @PatchMapping("/{id}")
-    public ResponseEntity<AventurierDTO> patchAventurier(
-            @PathVariable UUID id,
-            @Valid @RequestBody AventurierPatchDTO dto
-    ) {
-        AventurierDTO patchedAventurier = aventurierService.patchAventurier(id, dto);
-        return ResponseEntity.ok(patchedAventurier);
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Aventurier> patchAventurier(UUID id, AventurierPatch aventurierPatch) {
+        return ResponseEntity.ok(
+                mapperService.toGeneratedAventurier(
+                        aventurierService.patchAventurier(id, mapperService.fromGenerated(aventurierPatch))
+                )
+        );
     }
 
     /**
-     * DELETE /api/v1/aventuriers/{id} - Supprime un aventurier
+     * DELETE /api/v1/aventuriers/{id} — ADMIN
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAventurier(
-            @PathVariable UUID id
-    ) {
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAventurier(UUID id) {
         aventurierService.deleteAventurier(id);
         return ResponseEntity.noContent().build();
     }

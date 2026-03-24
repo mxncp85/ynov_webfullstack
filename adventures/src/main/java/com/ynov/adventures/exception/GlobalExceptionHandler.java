@@ -3,6 +3,7 @@ package com.ynov.adventures.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -67,6 +68,36 @@ public class GlobalExceptionHandler {
         problemDetail.setDetail("Les données fournies sont invalides");
         problemDetail.setProperty("fieldErrors", fieldErrors);
         problemDetail.setType(URI.create("about:blank"));
+
+        return problemDetail;
+    }
+
+    /**
+     * Gère les conflits de création de compte (email/username déjà utilisé)
+     */
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ProblemDetail handleUserAlreadyExists(UserAlreadyExistsException ex) {
+        log.warn("Conflit utilisateur: {}", ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problemDetail.setTitle("Conflit");
+        problemDetail.setDetail(ex.getMessage());
+        problemDetail.setType(java.net.URI.create("about:blank"));
+
+        return problemDetail;
+    }
+
+    /**
+     * Gère les erreurs d'authentification (mauvais email/mot de passe)
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ProblemDetail handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Échec d'authentification: {}", ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
+        problemDetail.setTitle("Non authentifié");
+        problemDetail.setDetail("Email ou mot de passe incorrect.");
+        problemDetail.setType(java.net.URI.create("about:blank"));
 
         return problemDetail;
     }

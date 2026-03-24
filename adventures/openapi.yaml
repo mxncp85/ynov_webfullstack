@@ -1,7 +1,18 @@
 openapi: 3.0.3
 info:
   title: API des Aventuriers
-  description: API REST pour la gestion des aventuriers
+  description: |
+    API REST pour la gestion des aventuriers.
+
+    ## Sécurité et rôles
+
+    Les endpoints sont protégés selon trois niveaux d'accès :
+    - **PUBLIC** : accessible sans authentification
+    - **VIEWER** : nécessite un JWT valide (rôle `VIEWER` ou `ADMIN`)
+    - **ADMIN** : nécessite un JWT valide avec le rôle `ADMIN`
+
+    Pour obtenir un token JWT, utiliser `POST /auth/login`.
+    Le token doit ensuite être fourni dans le header : `Authorization: Bearer <token>`
   version: 1.0.0
 
 servers:
@@ -16,16 +27,113 @@ security:
   - BearerAuth: []
 
 tags:
+  - name: Auth
+    description: Authentification et gestion des sessions
   - name: Aventuriers
     description: Opérations CRUD sur les aventuriers
 
 paths:
+
+  # ─────────────────────────────────────────
+  # Auth
+  # ─────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Crée un nouveau compte utilisateur
+      description: |
+        **PUBLIC** — Accessible sans authentification.
+        Enregistre un nouvel utilisateur avec le rôle `VIEWER` par défaut.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+            example:
+              username: "aragorn"
+              email: "aragorn@gondor.me"
+              password: "Telcontar42!"
+      responses:
+        '201':
+          description: Utilisateur créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authentifie un utilisateur et retourne un token JWT
+      description: |
+        **PUBLIC** — Accessible sans authentification.
+        Retourne un token JWT à inclure dans le header `Authorization: Bearer <token>`
+        pour tous les appels aux endpoints protégés.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            example:
+              email: "aragorn@gondor.me"
+              password: "Telcontar42!"
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Invalide la session courante
+      description: |
+        **VIEWER / ADMIN** — Nécessite un JWT valide (tout utilisateur authentifié).
+        Invalide le token JWT côté serveur (blacklist).
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Déconnexion réussie (pas de contenu)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ─────────────────────────────────────────
+  # Aventuriers
+  # ─────────────────────────────────────────
+
   /api/v1/aventuriers:
     get:
       tags: [Aventuriers]
       summary: Liste tous les aventuriers
+      description: |
+        **VIEWER / ADMIN** — Nécessite un JWT valide (tout utilisateur authentifié).
+        Retourne la liste paginée de tous les aventuriers, avec filtres optionnels.
       operationId: listAventuriers
-      security: []  # Endpoint public — pas d'authentification requise
       parameters:
         - $ref: '#/components/parameters/QueryPage'
         - $ref: '#/components/parameters/QueryLimit'
@@ -47,7 +155,12 @@ paths:
     post:
       tags: [Aventuriers]
       summary: Crée un nouvel aventurier
+      description: |
+        **ADMIN** — Nécessite un JWT valide avec le rôle `ADMIN`.
+        Crée un nouvel aventurier. Le niveau est initialisé à 1 côté serveur.
       operationId: createAventurier
+      security:
+        - BearerAuth: []
       requestBody:
         $ref: '#/components/requestBodies/AventurierCreateBody'
       responses:
@@ -59,6 +172,10 @@ paths:
                 $ref: '#/components/schemas/Aventurier'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -71,8 +188,10 @@ paths:
     get:
       tags: [Aventuriers]
       summary: Récupère un aventurier par son ID
+      description: |
+        **VIEWER / ADMIN** — Nécessite un JWT valide (tout utilisateur authentifié).
+        Retourne le détail d'un aventurier identifié par son UUID.
       operationId: getAventurierById
-      security: []  # Endpoint public — pas d'authentification requise
       responses:
         '200':
           description: Aventurier trouvé
@@ -88,7 +207,12 @@ paths:
     put:
       tags: [Aventuriers]
       summary: Met à jour complètement un aventurier
+      description: |
+        **ADMIN** — Nécessite un JWT valide avec le rôle `ADMIN`.
+        Remplace toutes les données de l'aventurier par celles fournies dans le corps.
       operationId: updateAventurier
+      security:
+        - BearerAuth: []
       requestBody:
         $ref: '#/components/requestBodies/AventurierUpdateBody'
       responses:
@@ -100,6 +224,10 @@ paths:
                 $ref: '#/components/schemas/Aventurier'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -110,7 +238,12 @@ paths:
     patch:
       tags: [Aventuriers]
       summary: Met à jour partiellement un aventurier
+      description: |
+        **ADMIN** — Nécessite un JWT valide avec le rôle `ADMIN`.
+        Met à jour uniquement les champs fournis dans le corps de la requête.
       operationId: patchAventurier
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -126,6 +259,10 @@ paths:
                 $ref: '#/components/schemas/Aventurier'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -136,10 +273,19 @@ paths:
     delete:
       tags: [Aventuriers]
       summary: Supprime un aventurier
+      description: |
+        **ADMIN** — Nécessite un JWT valide avec le rôle `ADMIN`.
+        Supprime définitivement l'aventurier identifié par son UUID.
       operationId: deleteAventurier
+      security:
+        - BearerAuth: []
       responses:
         '204':
           description: Aventurier supprimé avec succès (pas de contenu)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -157,7 +303,8 @@ components:
       bearerFormat: JWT
       description: >
         Authentification via JWT. Inclure le token dans le header :
-        `Authorization: Bearer <token>`
+        `Authorization: Bearer <token>`.
+        Le token est obtenu via `POST /auth/login`.
 
   # ─────────────────────────────────────────
   # Paramètres réutilisables
@@ -248,6 +395,99 @@ components:
   # Schémas
   # ─────────────────────────────────────────
   schemas:
+
+    UserRole:
+      type: string
+      description: Rôle de l'utilisateur dans le système
+      enum:
+        - VIEWER
+        - ADMIN
+      example: VIEWER
+
+    RegisterInput:
+      type: object
+      description: Données requises pour créer un compte utilisateur
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          description: Nom d'utilisateur unique
+          minLength: 3
+          maxLength: 50
+          example: "aragorn"
+        email:
+          type: string
+          format: email
+          description: Adresse email unique
+          example: "aragorn@gondor.me"
+        password:
+          type: string
+          format: password
+          description: Mot de passe (min. 8 caractères, 1 majuscule, 1 chiffre)
+          minLength: 8
+          example: "Telcontar42!"
+
+    LoginInput:
+      type: object
+      description: Identifiants pour se connecter
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adresse email du compte
+          example: "aragorn@gondor.me"
+        password:
+          type: string
+          format: password
+          description: Mot de passe du compte
+          example: "Telcontar42!"
+
+    AuthResponse:
+      type: object
+      description: Réponse d'authentification contenant le token JWT et les informations utilisateur
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          description: Token JWT à utiliser dans le header Authorization
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      description: Informations publiques de l'utilisateur authentifié
+      required:
+        - id
+        - username
+        - email
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifiant unique de l'utilisateur
+          readOnly: true
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        username:
+          type: string
+          description: Nom d'utilisateur
+          example: "aragorn"
+        email:
+          type: string
+          format: email
+          description: Adresse email
+          example: "aragorn@gondor.me"
+        role:
+          $ref: '#/components/schemas/UserRole'
 
     Niveau:
       type: integer
@@ -502,6 +742,42 @@ components:
             fieldErrors:
               nom: "Le nom doit faire entre 2 et 100 caractères"
               "caracteristiques.physique": "La valeur doit être comprise entre 1 et 20"
+
+    Unauthorized:
+      description: Token JWT absent ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Non authentifié"
+            status: 401
+            detail: "Token JWT absent ou expiré. Veuillez vous connecter via POST /auth/login."
+
+    Forbidden:
+      description: Authentifié mais rôle insuffisant pour cette action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Accès refusé"
+            status: 403
+            detail: "Le rôle ADMIN est requis pour effectuer cette action."
+
+    Conflict:
+      description: Conflit — la ressource existe déjà
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "about:blank"
+            title: "Conflit"
+            status: 409
+            detail: "Un compte avec cet email existe déjà."
 
     NotFound:
       description: Ressource non trouvée
